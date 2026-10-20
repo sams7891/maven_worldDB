@@ -23,22 +23,27 @@ public class SelectOperation {
 		
 		ObservableList<ObservableList<String>> data = FXCollections.observableArrayList();
 		
-		String sql = "SELECT + FROM " + tableName;
+		String sql = "SELECT * FROM " + tableName;
 		
 		try(Statement st = con.createStatement();
 				ResultSet rs = st.executeQuery(sql)){
 					ResultSetMetaData meta = rs.getMetaData();
 					int colCount = meta.getColumnCount();
 					
-					for(int i = 0; i < colCount; i++) {
-						final int j = i - 1;
-						String colName = meta.getColumnName(i);
-						columnNames.add(colName);
-						
-						TableColumn<ObservableList<String>, String> col = new TableColumn<>(colName);
-						
-						col.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().get(j)));
-						table.getColumns().add(col);
+					for (int i = 1; i <= colCount; i++) {
+					    final int j = i - 1;
+
+					    String colName = meta.getColumnName(i);
+					    columnNames.add(colName);
+
+					    TableColumn<ObservableList<String>, String> col =
+					            new TableColumn<>(colName);
+
+					    col.setCellValueFactory(param ->
+					            new SimpleStringProperty(param.getValue().get(j))
+					    );
+
+					    table.getColumns().add(col);
 					}
 					
 						while(rs.next()) {

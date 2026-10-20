@@ -8,9 +8,15 @@ import atlantafx.base.theme.PrimerDark;
 import dataBase.DataBaseConnection;
 import javafx.application.Application;
 import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
 import javafx.scene.control.TableView;
+import javafx.scene.image.Image;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import operations.SelectOperation;
 import utility.AlertManager;
@@ -59,6 +65,26 @@ public class WorldDbApp extends Application{
 		};
 		
 		btnSelect.setOnAction(e -> loadData());
+		
+		tableSelector.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+			boolean isSeperator = (newVal == null || newVal.startsWith("---"));
+			btnSelect.setDisable(isSeperator);
+			//velak parejas podzinas
+		});
+		
+		tableSelector.getSelectionModel().select(1);
+		HBox topBox = new HBox(10, new Label("Tabula/Skats:"), tableSelector, btnSelect);
+		
+		topBox.setPadding(new Insets(10));
+		
+		//pēctam ir jauztaisa bottombox priekš pārēja
+		
+		VBox root = new VBox(10, topBox, table);
+		stage.setScene(new Scene(root, 900, 600));
+		stage.getIcons().add(new Image(getClass().getResourceAsStream("/icon.png")));
+		stage.show();
+		loadData();
+		
 	}
 
 	private void loadData() {
