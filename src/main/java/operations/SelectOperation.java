@@ -23,7 +23,7 @@ public class SelectOperation {
 		
 		ObservableList<ObservableList<String>> data = FXCollections.observableArrayList();
 		
-		String sql = "SELECT * FROM " + tableName;
+		String sql = "SELECT * FROM " + tableName + " ORDER BY 1 ASC";
 		
 		try(Statement st = con.createStatement();
 				ResultSet rs = st.executeQuery(sql)){
