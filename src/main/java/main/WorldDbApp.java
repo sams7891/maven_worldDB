@@ -3,6 +3,7 @@ package main;
 import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.List;
+
 import atlantafx.base.theme.PrimerDark;
 import dataBase.DataBaseConnection;
 import javafx.application.Application;
@@ -22,6 +23,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import operations.DeleteOperation;
 import operations.InsertOperation;
 import operations.SelectOperation;
 import operations.UpdateOperation;
@@ -74,7 +76,7 @@ public class WorldDbApp extends Application{
 		btnSelect.setOnAction(e -> loadData());
 		btnInsert.setOnAction(e -> showInsertUpdateDialog(false));
 		btnUpdate.setOnAction(e -> showInsertUpdateDialog(true));
-//		btnDelete.setOnAction(e -> performDelete());
+		btnDelete.setOnAction(e -> performDelete());
 		
 		tableSelector.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
 			boolean isSeperator = (newVal == null || newVal.startsWith("---"));
@@ -100,6 +102,78 @@ public class WorldDbApp extends Application{
 		
 	}
 	
+	private void performDelete() {
+		String tableName = tableSelector.getValue();
+		
+		if(tableName == null || tableName.startsWith("---"))
+			return;
+			
+		if(dataBaseView.contains(tableName)) {
+			AlertManager.showAlert("Uzmanību", "No skata dzēst nedrīkst");
+			return;
+		}
+		
+		loadData();
+		Alert dialog = new Alert(Alert.AlertType.ERROR);
+		dialog.setTitle("DELETE FROM " + tableName);
+		
+		dialog.getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
+		
+		String pkColumn = currentColumns.isEmpty() ? "ID" : currentColumns.get(0);
+		
+		dialog.setHeaderText("Ievadi " + pkColumn.toLowerCase() + " lai dzēstu:");
+		
+		GridPane grid = new GridPane();
+		grid.setHgap(10);
+		grid.setVgap(10);
+		grid.setPadding(new Insets(20));
+		List<String> pkColumns = new ArrayList<>();
+		List<TextField> textFields = new ArrayList<>();
+		
+		pkColumns.add(currentColumns.isEmpty() ? "ID" : currentColumns.get(0));
+		
+		for(int i = 0; i < pkColumns.size(); i++) {
+			String colName = pkColumns.get(i);
+			grid.add(new Label(colName + ": "), 0, i);
+			TextField tf = new TextField();
+			textFields.add(tf);
+			grid.add(tf, 1, i);
+		}
+		
+		dialog.getDialogPane().setContent(grid);
+		Button okButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
+		
+		okButton.addEventFilter(ActionEvent.ACTION, event -> {
+			try {
+				List<String> validPkValues = new ArrayList<>();
+				for(int i = 0; i < pkColumns.size(); i++) {
+					String columnName = pkColumns.get(i);
+					String rawValue = textFields.get(i).getText();
+					validPkValues.add(rawValue);
+				}
+				
+				int rowsAffected;
+				
+				rowsAffected = DeleteOperation.deleteRecord(con, tableName, pkColumns.get(0), validPkValues.get(0));
+				
+				if(rowsAffected > 0) {
+					AlertManager.showAlert("Veiksmīgi dzēsts", "Ieraksti dzēsti " + rowsAffected);
+					loadData();
+				}else {
+					AlertManager.showAlert("Dzēšana nenotika", "Norādītais ieraksts netika atrasts");
+					event.consume();
+				}
+				
+			}catch(IllegalArgumentException e) {
+				AlertManager.showAlert("Ievades datu kļūda", e.getMessage());
+				event.consume();
+			}catch(Exception e) {
+				AlertManager.showAlert("SQL kļūda", "Norādītais ieraksts netika atrasts");
+			}
+		});
+		
+	}
+
 	private void showInsertUpdateDialog(boolean isUpdate) {
 		String tableName = tableSelector.getValue();
 		
