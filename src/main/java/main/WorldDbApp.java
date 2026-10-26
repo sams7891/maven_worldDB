@@ -1,6 +1,7 @@
 package main;
 
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -127,10 +128,6 @@ public class WorldDbApp extends Application{
 		
 		dialog.getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
 		
-		String pkColumn = currentColumns.isEmpty() ? "ID" : currentColumns.get(0);
-		
-		dialog.setHeaderText("Ievadi " + pkColumn.toLowerCase() + " lai dzēstu:");
-		
 		GridPane grid = new GridPane();
 		grid.setHgap(10);
 		grid.setVgap(10);
@@ -143,6 +140,7 @@ public class WorldDbApp extends Application{
 			AlertManager.showAlert("Kļūda", e.getMessage());
 			return;
 		}
+		dialog.setHeaderText("Ievadi primārās atslēgas laukus, lai dzēstu:");
 		
 		for(int i = 0; i < pkColumns.size(); i++) {
 			String colName = pkColumns.get(i);
@@ -159,7 +157,6 @@ public class WorldDbApp extends Application{
 			try {
 				List<String> validPkValues = new ArrayList<>();
 				for(int i = 0; i < pkColumns.size(); i++) {
-					String columnName = pkColumns.get(i);
 					String rawValue = textFields.get(i).getText();
 					validPkValues.add(rawValue);
 				}
@@ -177,11 +174,15 @@ public class WorldDbApp extends Application{
 			}catch(IllegalArgumentException e) {
 				AlertManager.showAlert("Ievades datu kļūda", e.getMessage());
 				event.consume();
+			}catch(SQLException e) {
+				AlertManager.showAlert("SQL kļūda", InputValidator.formatSqlError(con, tableName, pkColumns, e));
+				event.consume();
 			}catch(Exception e) {
 				AlertManager.showAlert("SQL kļūda", e.getMessage());
 				event.consume();
 			}
 		});
+		dialog.showAndWait();
 		
 	}
 
@@ -284,6 +285,10 @@ public class WorldDbApp extends Application{
 				}
 			}catch(IllegalArgumentException e) {
 				AlertManager.showAlert("Ievades datu kļūda", e.getMessage());
+				event.consume();
+			}catch(SQLException e) {
+				List<String> candidateColumns = isUpdate ? currentColumns : activeColumns;
+				AlertManager.showAlert("SQL kļūda", InputValidator.formatSqlError(con, tableName, candidateColumns, e));
 				event.consume();
 			}catch(Exception e) {
 				AlertManager.showAlert("SQL kļūda", e.getMessage());

@@ -104,6 +104,44 @@ public class InputValidator {
 		return columns;
 	}
 
+	public static String formatSqlError(Connection con, String tableName, List<String> candidateColumns,
+			SQLException error) {
+		String message = error.getMessage() == null ? "Datu bāzes operācija neizdevās." : error.getMessage();
+		String lowerMessage = message.toLowerCase(Locale.ROOT);
+
+		try {
+			if (lowerMessage.contains("duplicate") || lowerMessage.contains("unique")) {
+				List<String> primaryKeyColumns = getPrimaryKeyColumns(con, tableName);
+				return "Lauks " + String.join(", ", primaryKeyColumns) + ": " + message;
+			}
+			if (lowerMessage.contains("foreign key") || lowerMessage.contains("constraint fails")) {
+				List<String> foreignKeyColumns = new ArrayList<>();
+				try (ResultSet rs = con.getMetaData().getImportedKeys(con.getCatalog(), null, tableName)) {
+					while (rs.next()) {
+						String column = rs.getString("FKCOLUMN_NAME");
+						if (!foreignKeyColumns.contains(column)) {
+							foreignKeyColumns.add(column);
+						}
+					}
+				}
+				if (!foreignKeyColumns.isEmpty()) {
+					return "Lauks " + String.join(", ", foreignKeyColumns) + ": " + message;
+				}
+			}
+		} catch (SQLException | IllegalArgumentException ignored) {
+		}
+
+		for (String column : candidateColumns) {
+			if (lowerMessage.contains(column.toLowerCase(Locale.ROOT))) {
+				return "Lauks " + column + ": " + message;
+			}
+		}
+		if (!candidateColumns.isEmpty()) {
+			return "Pārbaudi lauku vērtības: " + String.join(", ", candidateColumns) + ". " + message;
+		}
+		return message;
+	}
+
 	private static ColumnInfo getColumnInfo(Connection con, String tableName, String columnName) throws SQLException {
 		DatabaseMetaData meta = con.getMetaData();
 		try (ResultSet rs = meta.getColumns(con.getCatalog(), null, tableName, columnName)) {
