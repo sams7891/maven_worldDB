@@ -13,6 +13,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import utility.InputValidator;
 
 public class SelectOperation {
 
@@ -23,7 +24,8 @@ public class SelectOperation {
 		
 		ObservableList<ObservableList<String>> data = FXCollections.observableArrayList();
 		
-		String sql = "SELECT * FROM " + tableName + " ORDER BY 1 ASC";
+		String quotedTableName = InputValidator.quoteIdentifier(tableName);
+		String sql = "SELECT * FROM " + quotedTableName + " ORDER BY 1 ASC";
 		
 		try(Statement st = con.createStatement();
 				ResultSet rs = st.executeQuery(sql)){

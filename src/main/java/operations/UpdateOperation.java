@@ -17,16 +17,24 @@ public class UpdateOperation {
 		List<String> validatedValues = InputValidator.validateValues(con, tableName, columns, values);
 		List<Integer> keyIndexes = new ArrayList<>();
 		List<Integer> updateIndexes = new ArrayList<>();
+		for (String primaryKeyColumn : primaryKeyColumns) {
+			int index = -1;
+			for (int i = 0; i < columns.size(); i++) {
+				if (primaryKeyColumn.equalsIgnoreCase(columns.get(i))) {
+					index = i;
+					break;
+				}
+			}
+			if (index < 0) {
+				throw new IllegalArgumentException("Neizdevās atrast primārās atslēgas lauku " + primaryKeyColumn + ".");
+			}
+			keyIndexes.add(index);
+		}
 		for (int i = 0; i < columns.size(); i++) {
 			String columnName = columns.get(i);
-			if (primaryKeyColumns.stream().anyMatch(key -> key.equalsIgnoreCase(columnName))) {
-				keyIndexes.add(i);
-			} else {
+			if (primaryKeyColumns.stream().noneMatch(key -> key.equalsIgnoreCase(columnName))) {
 				updateIndexes.add(i);
 			}
-		}
-		if (keyIndexes.size() != primaryKeyColumns.size()) {
-			throw new IllegalArgumentException("Neizdevās atrast visus primārās atslēgas laukus.");
 		}
 		if (updateIndexes.isEmpty()) {
 			throw new IllegalArgumentException("Nav lauku, kurus atjaunināt.");
