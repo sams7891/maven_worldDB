@@ -161,7 +161,7 @@ public class WorldDbApp extends Application{
 					loadData();
 				}else {
 					AlertManager.showAlert("Dzēšana nenotika", "Norādītais ieraksts netika atrasts");
-					event.consume();
+					event.consume(); 
 				}
 				
 			}catch(IllegalArgumentException e) {
