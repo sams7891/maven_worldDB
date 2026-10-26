@@ -29,6 +29,7 @@ import operations.SelectOperation;
 import operations.UpdateOperation;
 import operations.ViewManager;
 import utility.AlertManager;
+import utility.InputValidator;
 
 public class WorldDbApp extends Application{
 	private Connection con;
@@ -63,7 +64,12 @@ public class WorldDbApp extends Application{
 		}
 		
 		tableSelector.getItems().add("--- Tabulas ---");
-		tableSelector.getItems().addAll("city");
+		try {
+			tableSelector.getItems().addAll(InputValidator.getDatabaseTables(con));
+		} catch (Exception e) {
+			AlertManager.showAlert("Kļūda", e.getMessage());
+			return;
+		}
 		
 		if(dataBaseView.isEmpty()) {
 			tableSelector.getItems().add("--- NAV ATRASTS NEVIENS SKATS ---");
@@ -87,7 +93,9 @@ public class WorldDbApp extends Application{
 
 		});
 		
-		tableSelector.getSelectionModel().select(1);
+		if (tableSelector.getItems().size() > 1) {
+			tableSelector.getSelectionModel().select(1);
+		}
 		HBox topBox = new HBox(10, new Label("Tabula/Skats:"), tableSelector, btnSelect);
 		
 		topBox.setPadding(new Insets(10));
@@ -127,10 +135,14 @@ public class WorldDbApp extends Application{
 		grid.setHgap(10);
 		grid.setVgap(10);
 		grid.setPadding(new Insets(20));
-		List<String> pkColumns = new ArrayList<>();
+		List<String> pkColumns;
 		List<TextField> textFields = new ArrayList<>();
-		
-		pkColumns.add(currentColumns.isEmpty() ? "ID" : currentColumns.get(0));
+		try {
+			pkColumns = InputValidator.getPrimaryKeyColumns(con, tableName);
+		} catch (Exception e) {
+			AlertManager.showAlert("Kļūda", e.getMessage());
+			return;
+		}
 		
 		for(int i = 0; i < pkColumns.size(); i++) {
 			String colName = pkColumns.get(i);
@@ -152,23 +164,22 @@ public class WorldDbApp extends Application{
 					validPkValues.add(rawValue);
 				}
 				
-				int rowsAffected;
-				
-				rowsAffected = DeleteOperation.deleteRecord(con, tableName, pkColumns.get(0), validPkValues.get(0));
+				int rowsAffected = DeleteOperation.deleteRecord(con, tableName, pkColumns, validPkValues);
 				
 				if(rowsAffected > 0) {
 					AlertManager.showAlert("Veiksmīgi dzēsts", "Ieraksti dzēsti " + rowsAffected);
 					loadData();
 				}else {
 					AlertManager.showAlert("Dzēšana nenotika", "Norādītais ieraksts netika atrasts");
-					event.consume(); 
+					event.consume();
 				}
 				
 			}catch(IllegalArgumentException e) {
 				AlertManager.showAlert("Ievades datu kļūda", e.getMessage());
 				event.consume();
 			}catch(Exception e) {
-				AlertManager.showAlert("SQL kļūda", "Norādītais ieraksts netika atrasts");
+				AlertManager.showAlert("SQL kļūda", e.getMessage());
+				event.consume();
 			}
 		});
 		
@@ -204,25 +215,34 @@ public class WorldDbApp extends Application{
 		grid.setVgap(10);
 		grid.setPadding(new Insets(20));
 		
-		List<String> activeColums = new ArrayList<>();
+		List<String> activeColumns = new ArrayList<>();
 		List<TextField> textFields = new ArrayList<>();
+		List<String> autoIncrementColumns = new ArrayList<>();
+		List<String> primaryKeyColumns;
+		try {
+			autoIncrementColumns = InputValidator.getAutoIncrementColumns(con, tableName);
+			primaryKeyColumns = InputValidator.getPrimaryKeyColumns(con, tableName);
+		} catch (Exception e) {
+			AlertManager.showAlert("Kļūda", e.getMessage());
+			return;
+		}
 		
 		int gridRow = 0;
 		
 		for(int i = 0; i < currentColumns.size(); i++) {
 			String colName = currentColumns.get(i);
 			
-			if(!isUpdate && colName.equalsIgnoreCase("id")) {
+			if(!isUpdate && autoIncrementColumns.stream().anyMatch(column -> column.equalsIgnoreCase(colName))) {
 				continue;
 			}
 			
-			activeColums.add(colName);
+			activeColumns.add(colName);
 			grid.add(new Label(colName + ": "), 0, gridRow);
 			
 			TextField tf = new TextField();
 			
-			if(isUpdate && i == 0) {
-				tf.setPromptText("Ievadi esošu ID/ valsts kodu");
+			if(isUpdate && primaryKeyColumns.stream().anyMatch(column -> column.equalsIgnoreCase(colName))) {
+				tf.setPromptText("Ievadi esošo primārās atslēgas vērtību");
 			}
 			textFields.add(tf);
 			grid.add(tf, 1, gridRow);
@@ -239,29 +259,32 @@ public class WorldDbApp extends Application{
 				List<String> values = new ArrayList<>();
 				
 				for(int i = 0; i < textFields.size(); i ++) {
-					String colName = activeColums.get(i);
-					String rawValue = textFields.get(i).getText();
-					values.add(rawValue);
+					values.add(textFields.get(i).getText());
 				}
 				
 				if(isUpdate) {
-					int rowAffected = UpdateOperation.updateRecord(con, tableName, currentColumns, values);
+					int rowAffected = UpdateOperation.updateRecord(con, tableName, currentColumns, values,
+							primaryKeyColumns);
 					
 					if(rowAffected > 0) {
 						AlertManager.showAlert("Veiksmīgi", "Ieraksts tika atjaunināts");
 						loadData();
 					}else {
-						String pkColumns = currentColumns.get(0);
-						String pkValue = values.get(0);
+						String pkColumns = String.join(", ", primaryKeyColumns);
+						String pkValue = primaryKeyColumns.stream()
+								.map(column -> values.get(currentColumns.indexOf(column))).reduce((a, b) -> a + ", " + b).orElse("");
 						
 						AlertManager.showAlert("Informācija", "Ieraksts ar " + pkColumns + " = " + pkValue + " netika atrasts!");
 						event.consume();
 					}
 				}else {
-					InsertOperation.insertRecord(con, tableName, activeColums, values);
+					InsertOperation.insertRecord(con, tableName, activeColumns, values);
 					AlertManager.showAlert("Veiksmīgi", "Jauns ieraksts ievietots!");
 					loadData();
 				}
+			}catch(IllegalArgumentException e) {
+				AlertManager.showAlert("Ievades datu kļūda", e.getMessage());
+				event.consume();
 			}catch(Exception e) {
 				AlertManager.showAlert("SQL kļūda", e.getMessage());
 				event.consume();
